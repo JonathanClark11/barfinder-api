@@ -1,4 +1,5 @@
 <?php
+header('Access-Control-Allow-Origin: *'); //IMPORTANT FOR CROSS DOMAIN REQUESTS!!!
 define("SITE_ROOT", realpath(dirname(__FILE__)));
 
 define("API_VERSION", "0.1");
@@ -158,13 +159,17 @@ function getBars() {
     $bars = getDatabase()->all('SELECT  venues.id AS id,
                                         venues.name,
                                         venues.lat, 
-                                        venues.lng
+                                        venues.lng,
+                                        venues.type,
+                                        venues.address,
+                                        waitlog.peopleEstimate
                                 FROM venues
                                 LEFT OUTER JOIN waitlog
-                                ON  venues.foursquareId = waitlog.foursquareId AND  
+                                ON  venues.id = waitlog.venueid AND  
                                     waitlog.updated >= NOW() - INTERVAL 1 HOUR
                                 WHERE venues.enabled = 1
                                 GROUP BY id');
+    
     echo json_encode(array('bars' => $bars));
 }
 
@@ -179,8 +184,8 @@ function searchBars() {
 }
 
 function getBar($id) {
-    $bar = getDatabase()->one('SELECT venues.foursquareId AS id, venues.id AS YqId,
-                        IFNULL(COUNT(waitlog.foursquareId), 0) AS numberOfEstimates, 
+    $bar = getDatabase()->one('SELECT venues.id as id,
+                        IFNULL(COUNT(waitlog.venueid), 0) AS numberOfEstimates, 
                         IFNULL(FORMAT((((IFNULL(AVG(waitlog.peopleEstimate), 0) * 2) + IFNULL(AVG(waitlog.waitEstimate), 0)) / 
                             (CASE WHEN Count(waitlog.peopleEstimate) > 0 THEN 1 ELSE 0 END + CASE WHEN Count(waitlog.waitEstimate) > 0 THEN 1 ELSE 0 END)
                             ), 0), 0) AS waitTime,
@@ -190,7 +195,7 @@ function getBar($id) {
                         venues.cover, venues.event, venues.city
                     FROM venues
                     LEFT OUTER JOIN waitlog
-                    ON  venues.foursquareId = waitlog.foursquareId AND  
+                    ON  venues.id = waitlog.venueid AND  
                         waitlog.updated >= NOW() - INTERVAL 1 HOUR
                     WHERE venues.enabled = 1 AND venues.id = ' . $id . '
                     GROUP BY id');
